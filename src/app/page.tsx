@@ -954,6 +954,9 @@ function AdminPanelView({ onLogout, onViewCard, onDownloadCard }: {
   const [todayCount, setTodayCount] = useState(0);
   const [selectedNids, setSelectedNids] = useState<Set<string>>(new Set());
   const [showTimer, setShowTimer] = useState(false);
+  const [timerType, setTimerType] = useState<'hours' | 'days' | 'date'>('hours');
+  const [timerValue, setTimerValue] = useState('');
+  const [timerStatus, setTimerStatus] = useState<{ active: boolean; timer?: { remaining: number; remainingLabel: string; label: string }; expired?: boolean } | null>(null);
   const [previewData, setPreviewData] = useState<NidCardData | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ title: string; msg: string; onConfirm: () => void } | null>(null);
@@ -1006,11 +1009,32 @@ function AdminPanelView({ onLogout, onViewCard, onDownloadCard }: {
   }, [searchInput]);
 
   // Initial load
+  // Timer check
+  const checkTimer = useCallback(async () => {
+    try {
+      const res = await fetch('/api/timer');
+      const data = await res.json();
+      setTimerStatus(data);
+      if (data.expired) {
+        addToast('টাইমার শেষ! সব ডাটা ডিলিট হয়েছে', 'warning');
+        loadData();
+      }
+    } catch { /* ignore */ }
+  }, [loadData]);
+
   const [initialized, setInitialized] = useState(false);
   if (!initialized) {
     setInitialized(true);
     loadData();
+    checkTimer();
   }
+
+  // Timer countdown interval
+  useEffect(() => {
+    if (!timerStatus?.active) return;
+    const interval = setInterval(checkTimer, 5000);
+    return () => clearInterval(interval);
+  }, [timerStatus?.active, checkTimer]);
 
   const debounceSearch = () => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -1141,7 +1165,7 @@ function AdminPanelView({ onLogout, onViewCard, onDownloadCard }: {
         <div className="stats-row">
           <div className="stat-card"><div className="stat-icon green"><i className="bi bi-people"></i></div><div className="stat-info"><h3>{totalNid}</h3><p>মোট NID কার্ড</p></div></div>
           <div className="stat-card"><div className="stat-icon blue"><i className="bi bi-calendar-check"></i></div><div className="stat-info"><h3>{todayCount}</h3><p>আজকের তৈরি</p></div></div>
-          <div className="stat-card"><div className="stat-icon gold"><i className="bi bi-clock-history"></i></div><div className="stat-info"><h3>নেই</h3><p>অটো ডিলিট টাইমার</p></div></div>
+          <div className="stat-card"><div className="stat-icon gold"><i className="bi bi-clock-history"></i></div><div className="stat-info"><h3>{timerStatus?.active && timerStatus.timer ? timerStatus.timer.remainingLabel : 'নেই'}</h3><p>অটো ডিলিট টাইমার</p></div></div>
           <div className="stat-card"><div className="stat-icon red"><i className="bi bi-check2-square"></i></div><div className="stat-info"><h3>{selectedNids.size}</h3><p>সিলেক্টেড</p></div></div>
         </div>
         {/* Action Bar */}
@@ -1159,9 +1183,50 @@ function AdminPanelView({ onLogout, onViewCard, onDownloadCard }: {
             </div>
           </div>
           {showTimer && (
-            <div className="timer-section">
-              <h4><i className="bi bi-clock-fill"></i> অটো ডিলিট টাইমার (ডেমো)</h4>
-              <p style={{ fontSize: 13, color: '#92400e' }}>টাইমার ফিচার ডাটাবেস সংস্করণে সরলীকৃত</p>
+            <div className={`timer-section ${timerStatus?.active ? 'timer-active' : ''}`}>
+              <h4><i className="bi bi-clock-fill"></i> অটো ডিলিট টাইমার</h4>
+              {timerStatus?.active && timerStatus.timer ? (
+                <>
+                  <div className="timer-countdown">{timerStatus.timer.remainingLabel}</div>
+                  <p style={{ fontSize: 12, color: '#991b1b', marginBottom: 10 }}>সময় শেষে সকল ডাটা স্বয়ংক্রিয়ভাবে ডিলিট হবে ({timerStatus.timer.label})</p>
+                  <button className="btn-action btn-danger" style={{ marginTop: 5 }} onClick={async () => {
+                    try {
+                      await fetch('/api/timer', { method: 'DELETE' });
+                      setTimerStatus({ active: false });
+                      addToast('টাইমার বাতিল হয়েছে', 'success');
+                    } catch { addToast('টাইমার বাতিল ত্রুটি', 'error'); }
+                  }}><i className="bi bi-x-circle"></i> টাইমার বাতিল করুন</button>
+                </>
+              ) : (
+                <div className="timer-form">
+                  <select value={timerType} onChange={e => setTimerType(e.target.value as 'hours' | 'days' | 'date')}>
+                    <option value="hours">ঘন্টা</option>
+                    <option value="days">দিন</option>
+                    <option value="date">নির্দিষ্ট তারিখ</option>
+                  </select>
+                  {timerType === 'date' ? (
+                    <input type="datetime-local" value={timerValue} onChange={e => setTimerValue(e.target.value)} />
+                  ) : (
+                    <input type="number" placeholder={timerType === 'hours' ? 'ঘন্টা সংখ্যা' : 'দিন সংখ্যা'} value={timerValue} onChange={e => setTimerValue(e.target.value)} min="1" />
+                  )}
+                  <button className="btn-action btn-danger" onClick={async () => {
+                    if (!timerValue) { addToast('মান দিন', 'warning'); return; }
+                    try {
+                      const res = await fetch('/api/timer', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: timerType, value: timerValue }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        addToast(data.message, 'success');
+                        checkTimer();
+                        setTimerValue('');
+                      } else { addToast(data.message, 'error'); }
+                    } catch { addToast('টাইমার সেট ত্রুটি', 'error'); }
+                  }}><i className="bi bi-clock"></i> টাইমার সেট করুন</button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1422,6 +1487,7 @@ function DownloaderView({ nid, cardData, onBackToView }: {
         <div className="bar-btns">
           <button onClick={downloadPDF} className="bar-btn btn-pdf"><i className="bi bi-file-earmark-pdf"></i> PDF</button>
           <button onClick={printCard} className="bar-btn btn-print"><i className="bi bi-printer"></i> প্রিন্ট</button>
+          <a href={`/api/nid/docx?nid=${nid}`} className="bar-btn btn-docx"><i className="bi bi-file-earmark-word"></i> DOCX</a>
           <button onClick={downloadPNG} className="bar-btn btn-png"><i className="bi bi-image"></i> PNG</button>
           <button onClick={onBackToView} className="bar-btn btn-back-bar"><i className="bi bi-eye"></i> ভিউ</button>
         </div>

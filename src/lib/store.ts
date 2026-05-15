@@ -86,3 +86,87 @@ export function searchCards(query: string): NidCardData[] {
     return searchStr.includes(q);
   });
 }
+
+// ===== AUTO-DELETE TIMER =====
+export interface TimerData {
+  deleteAt: number;  // Unix timestamp in milliseconds
+  label: string;
+  createdAt: number;
+  type: 'hours' | 'days' | 'date';
+  value: string;
+}
+
+const globalForTimer = globalThis as unknown as {
+  nidTimer: TimerData | undefined;
+};
+
+let _timer: TimerData | null = globalForTimer.nidTimer ?? null;
+
+export function setTimer(type: 'hours' | 'days' | 'date', value: string): { success: boolean; message: string } {
+  let deleteAt = 0;
+  let label = '';
+
+  if (type === 'hours') {
+    const hours = parseInt(value);
+    if (isNaN(hours) || hours < 1) return { success: false, message: 'সঠিক ঘন্টা দিন' };
+    deleteAt = Date.now() + (hours * 3600 * 1000);
+    label = hours + ' ঘন্টা পরে';
+  } else if (type === 'days') {
+    const days = parseInt(value);
+    if (isNaN(days) || days < 1) return { success: false, message: 'সঠিক দিন দিন' };
+    deleteAt = Date.now() + (days * 86400 * 1000);
+    label = days + ' দিন পরে';
+  } else if (type === 'date') {
+    deleteAt = new Date(value).getTime();
+    if (isNaN(deleteAt) || deleteAt <= Date.now()) {
+      return { success: false, message: 'সঠিক ভবিষ্যৎ তারিখ দিন' };
+    }
+    label = new Date(value).toLocaleString('bn-BD') + ' তারিখে';
+  }
+
+  _timer = { deleteAt, label, createdAt: Date.now(), type, value };
+  globalForTimer.nidTimer = _timer;
+  return { success: true, message: 'টাইমার সেট হয়েছে: ' + label + ' সব ডাটা ডিলিট হবে' };
+}
+
+export function cancelTimer(): boolean {
+  if (_timer) {
+    _timer = null;
+    globalForTimer.nidTimer = undefined;
+    return true;
+  }
+  return false;
+}
+
+export function getTimerStatus(): { active: boolean; timer?: TimerData & { remaining: number; remainingLabel: string }; expired?: boolean } {
+  // Check if timer has expired - if so, delete all data
+  if (_timer && _timer.deleteAt <= Date.now()) {
+    nidStore.clear();
+    _timer = null;
+    globalForTimer.nidTimer = undefined;
+    return { active: false, expired: true };
+  }
+
+  if (!_timer) return { active: false };
+
+  const remaining = _timer.deleteAt - Date.now();
+  const days = Math.floor(remaining / 86400000);
+  const hours = Math.floor((remaining % 86400000) / 3600000);
+  const mins = Math.floor((remaining % 3600000) / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(days + ' দিন');
+  if (hours > 0) parts.push(hours + ' ঘন্টা');
+  if (mins > 0) parts.push(mins + ' মিনিট');
+  if (days === 0 && hours === 0) parts.push(secs + ' সেকেন্ড');
+
+  return {
+    active: true,
+    timer: {
+      ..._timer,
+      remaining,
+      remainingLabel: parts.join(' '),
+    }
+  };
+}
