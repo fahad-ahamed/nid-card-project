@@ -237,6 +237,80 @@ function NidMakeView({ onCardCreated, onGoAdmin, searchQuery, setSearchQuery, se
       address: `গ্রাম/মহল্লা, উপজেলা/থানা, জেলা: ${area}`,
       gender: Math.random() > 0.5 ? 'male' : 'female',
     });
+
+    // Generate random photo using canvas
+    const photoCanvas = document.createElement('canvas');
+    photoCanvas.width = 150;
+    photoCanvas.height = 180;
+    const photoCtx = photoCanvas.getContext('2d');
+    if (photoCtx) {
+      // Background
+      photoCtx.fillStyle = ['#e8d5b7', '#d4c5a9', '#c9b896', '#f0e6d3'][Math.floor(Math.random() * 4)];
+      photoCtx.fillRect(0, 0, 150, 180);
+      // Hair
+      photoCtx.fillStyle = '#1a1a1a';
+      photoCtx.beginPath();
+      photoCtx.arc(75, 40, 32, Math.PI, 0);
+      photoCtx.fill();
+      // Face
+      photoCtx.fillStyle = '#d4a574';
+      photoCtx.beginPath();
+      photoCtx.arc(75, 55, 25, 0, Math.PI * 2);
+      photoCtx.fill();
+      // Eyes
+      photoCtx.fillStyle = '#1a1a1a';
+      photoCtx.beginPath();
+      photoCtx.arc(65, 52, 3, 0, Math.PI * 2);
+      photoCtx.arc(85, 52, 3, 0, Math.PI * 2);
+      photoCtx.fill();
+      // Mouth
+      photoCtx.strokeStyle = '#8B4513';
+      photoCtx.lineWidth = 1.5;
+      photoCtx.beginPath();
+      photoCtx.arc(75, 62, 8, 0.1 * Math.PI, 0.9 * Math.PI);
+      photoCtx.stroke();
+      // Body
+      photoCtx.fillStyle = ['#1a5276', '#2e86c1', '#1b4f72', '#2c3e50'][Math.floor(Math.random() * 4)];
+      photoCtx.fillRect(30, 85, 90, 95);
+      // Collar
+      photoCtx.fillStyle = '#fff';
+      photoCtx.beginPath();
+      photoCtx.moveTo(60, 85);
+      photoCtx.lineTo(75, 100);
+      photoCtx.lineTo(90, 85);
+      photoCtx.closePath();
+      photoCtx.fill();
+    }
+    const photoDataUrl = photoCanvas.toDataURL('image/png');
+    setPhotoPreview(photoDataUrl);
+    setPhotoBase64(photoDataUrl.split(',')[1]);
+    setPhotoType('image/png');
+
+    // Generate random signature using canvas
+    const signCanvas = document.createElement('canvas');
+    signCanvas.width = 200;
+    signCanvas.height = 60;
+    const signCtx = signCanvas.getContext('2d');
+    if (signCtx) {
+      signCtx.fillStyle = '#ffffff';
+      signCtx.fillRect(0, 0, 200, 60);
+      signCtx.strokeStyle = '#000080';
+      signCtx.lineWidth = 2;
+      signCtx.beginPath();
+      // Random signature-like curve
+      const startX = 20;
+      signCtx.moveTo(startX, 40);
+      for (let i = 0; i < 5; i++) {
+        const x = startX + (i * 35) + Math.random() * 10;
+        const y = 20 + Math.random() * 30;
+        signCtx.quadraticCurveTo(x + 10, y - 15, x + 20, y);
+      }
+      signCtx.stroke();
+    }
+    const signDataUrl = signCanvas.toDataURL('image/png');
+    setSignPreview(signDataUrl);
+    setSignBase64(signDataUrl.split(',')[1]);
+    setSignType('image/png');
   };
 
   const validate = (): boolean => {

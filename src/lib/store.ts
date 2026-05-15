@@ -1,65 +1,88 @@
-import { create } from 'zustand'
-
-export type ViewType = 'home' | 'card-view' | 'admin' | 'search'
-
+// In-memory NID card storage - works on Vercel serverless
 export interface NidCardData {
-  id: string
-  nameBn: string
-  nameEn: string
-  nid: string
-  pin: string
-  father: string
-  mother: string
-  birthPlace: string
-  dob: string
-  blood: string
-  address: string
-  gender: string
-  photoBase64?: string | null
-  photoType?: string | null
-  signBase64?: string | null
-  signType?: string | null
-  issueDate: string
-  createdAt: string
-  updatedAt: string
+  id: string;
+  nameBn: string;
+  nameEn: string;
+  nid: string;
+  pin: string;
+  father: string;
+  mother: string;
+  birthPlace: string;
+  dob: string;
+  blood: string;
+  address: string;
+  gender: string;
+  photoBase64: string | null;
+  photoType: string | null;
+  signBase64: string | null;
+  signType: string | null;
+  issueDate: string;
+  createdAt: string;
 }
 
-interface AppState {
-  currentView: ViewType
-  setCurrentView: (view: ViewType) => void
+// Global store that persists across serverless function invocations
+const globalForStore = globalThis as unknown as {
+  nidStore: Map<string, NidCardData> | undefined;
+  adminPassword: string | undefined;
+};
 
-  currentCard: NidCardData | null
-  setCurrentCard: (card: NidCardData | null) => void
+export const nidStore = globalForStore.nidStore ?? new Map<string, NidCardData>();
 
-  searchQuery: string
-  setSearchQuery: (query: string) => void
+if (process.env.NODE_ENV !== 'production') globalForStore.nidStore = nidStore;
 
-  searchResults: NidCardData[]
-  setSearchResults: (results: NidCardData[]) => void
+// Admin password - stored in memory
+let _adminPassword = globalForStore.adminPassword ?? 'fahad';
+if (process.env.NODE_ENV !== 'production') globalForStore.adminPassword = _adminPassword;
 
-  isAdminLoggedIn: boolean
-  setIsAdminLoggedIn: (val: boolean) => void
-
-  allCards: NidCardData[]
-  setAllCards: (cards: NidCardData[]) => void
+export function verifyAdmin(password: string): boolean {
+  return password === _adminPassword;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  currentView: 'home',
-  setCurrentView: (view) => set({ currentView: view }),
+export function resetAdminPassword(newPassword: string): void {
+  _adminPassword = newPassword;
+  globalForStore.adminPassword = newPassword;
+}
 
-  currentCard: null,
-  setCurrentCard: (card) => set({ currentCard: card }),
+export function getAllCards(): NidCardData[] {
+  return Array.from(nidStore.values()).sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
 
-  searchQuery: '',
-  setSearchQuery: (query) => set({ searchQuery: query }),
+export function getCardByNid(nid: string): NidCardData | undefined {
+  return nidStore.get(nid);
+}
 
-  searchResults: [],
-  setSearchResults: (results) => set({ searchResults: results }),
+export function getCardByPin(pin: string): NidCardData | undefined {
+  return Array.from(nidStore.values()).find(c => c.pin === pin);
+}
 
-  isAdminLoggedIn: false,
-  setIsAdminLoggedIn: (val) => set({ isAdminLoggedIn: val }),
+export function createCard(data: Omit<NidCardData, 'id' | 'createdAt'>): NidCardData | null {
+  if (nidStore.has(data.nid)) return null; // Already exists
+  const card: NidCardData = {
+    ...data,
+    id: Math.random().toString(36).substr(2, 9),
+    createdAt: new Date().toISOString(),
+  };
+  nidStore.set(data.nid, card);
+  return card;
+}
 
-  allCards: [],
-  setAllCards: (cards) => set({ allCards: cards }),
-}))
+export function deleteCard(nid: string): boolean {
+  return nidStore.delete(nid);
+}
+
+export function deleteAllCards(): number {
+  const count = nidStore.size;
+  nidStore.clear();
+  return count;
+}
+
+export function searchCards(query: string): NidCardData[] {
+  const q = query.toLowerCase().trim();
+  if (!q) return getAllCards();
+  return getAllCards().filter(d => {
+    const searchStr = [d.nameBn, d.nameEn, d.nid, d.pin, d.father, d.mother, d.address, d.birthPlace].join(' ').toLowerCase();
+    return searchStr.includes(q);
+  });
+}

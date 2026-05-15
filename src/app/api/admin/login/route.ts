@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { verifyAdmin, resetAdminPassword } from '@/lib/store'
 
 // POST /api/admin/login
 export async function POST(request: NextRequest) {
@@ -14,17 +14,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const adminRecord = await db.adminPassword.findFirst()
-    if (!adminRecord) {
-      // Create default admin password if not exists
-      await db.adminPassword.create({ data: { password: 'fahad' } })
-      return NextResponse.json({
-        success: password === 'fahad',
-        message: password === 'fahad' ? 'Login successful' : 'ভুল পাসওয়ার্ড!',
-      })
-    }
-
-    if (password === adminRecord.password) {
+    if (verifyAdmin(password)) {
       return NextResponse.json({ success: true, message: 'Login successful' })
     }
 
@@ -69,15 +59,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const adminRecord = await db.adminPassword.findFirst()
-    if (adminRecord) {
-      await db.adminPassword.update({
-        where: { id: adminRecord.id },
-        data: { password: newPassword },
-      })
-    } else {
-      await db.adminPassword.create({ data: { password: newPassword } })
-    }
+    resetAdminPassword(newPassword)
 
     return NextResponse.json({ success: true, message: 'পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে!' })
   } catch {

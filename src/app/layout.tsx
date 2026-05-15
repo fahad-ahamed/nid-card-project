@@ -42,6 +42,8 @@ export default function RootLayout({
         />
         {/* Favicon */}
         <link href="https://surokkha.gov.bd/favicon.png" rel="icon" />
+        {/* Original CSS */}
+        <link rel="stylesheet" href="/assets/CSS/tx1337.css" />
       </head>
       <body className="antialiased">
         {children}

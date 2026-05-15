@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import {
+  getAllCards,
+  getCardByNid,
+  getCardByPin,
+  createCard,
+  deleteCard,
+  deleteAllCards,
+  searchCards,
+} from '@/lib/store'
 
 // GET /api/nid - Search by NID or PIN, or get all, or admin search
 export async function GET(request: NextRequest) {
@@ -12,36 +20,19 @@ export async function GET(request: NextRequest) {
 
     // Admin search - search across all fields
     if (q !== null) {
-      const query = q.toLowerCase().trim()
-      const allCards = await db.nidCard.findMany({
-        orderBy: { createdAt: 'desc' },
-      })
-
-      if (!query) {
-        return NextResponse.json({ success: true, data: allCards, total: allCards.length })
-      }
-
-      const results = allCards.filter((d: Record<string, unknown>) => {
-        const searchStr = [
-          d.nameBn, d.nameEn, d.nid, d.pin, d.father, d.mother, d.address, d.birthPlace
-        ].join(' ').toLowerCase()
-        return searchStr.includes(query)
-      })
-
+      const results = searchCards(q)
       return NextResponse.json({ success: true, data: results, total: results.length })
     }
 
     // Get all NID cards
     if (all === 'true') {
-      const cards = await db.nidCard.findMany({
-        orderBy: { createdAt: 'desc' },
-      })
+      const cards = getAllCards()
       return NextResponse.json({ success: true, data: cards })
     }
 
     // Search by NID number
     if (nid) {
-      const card = await db.nidCard.findUnique({ where: { nid } })
+      const card = getCardByNid(nid)
       if (!card) {
         return NextResponse.json(
           { found: false, message: 'কোনো তথ্য পাওয়া যায়নি' },
@@ -75,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     // Search by PIN
     if (pin) {
-      const card = await db.nidCard.findFirst({ where: { pin } })
+      const card = getCardByPin(pin)
       if (!card) {
         return NextResponse.json(
           { found: false, message: 'কোনো তথ্য পাওয়া যায়নি' },
@@ -110,10 +101,10 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     if (search) {
       // Try NID first
-      let card = await db.nidCard.findUnique({ where: { nid: search } })
+      let card = getCardByNid(search)
       if (!card) {
         // Try PIN
-        card = await db.nidCard.findFirst({ where: { pin: search } })
+        card = getCardByPin(search)
       }
       if (!card) {
         return NextResponse.json({ found: false, message: 'কোনো তথ্য পাওয়া যায়নি' })
@@ -185,35 +176,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if NID already exists
-    const existing = await db.nidCard.findUnique({ where: { nid } })
-    if (existing) {
+    const card = createCard({
+      nameBn,
+      nameEn,
+      nid,
+      pin,
+      father,
+      mother,
+      birthPlace: birthPlace || '',
+      dob,
+      blood,
+      address,
+      gender: gender || 'male',
+      photoBase64: photoBase64 || null,
+      photoType: photoType || null,
+      signBase64: signBase64 || null,
+      signType: signType || null,
+      issueDate,
+    })
+
+    if (!card) {
       return NextResponse.json(
         { success: false, message: 'NID number already exists' },
         { status: 409 }
       )
     }
-
-    const card = await db.nidCard.create({
-      data: {
-        nameBn,
-        nameEn,
-        nid,
-        pin,
-        father,
-        mother,
-        birthPlace: birthPlace || '',
-        dob,
-        blood,
-        address,
-        gender: gender || 'male',
-        photoBase64: photoBase64 || null,
-        photoType: photoType || null,
-        signBase64: signBase64 || null,
-        signType: signType || null,
-        issueDate,
-      },
-    })
 
     return NextResponse.json({ success: true, data: card }, { status: 201 })
   } catch {
@@ -237,32 +224,28 @@ export async function DELETE(request: NextRequest) {
       const nidList = nids.split(',').filter(Boolean)
       let count = 0
       for (const n of nidList) {
-        try {
-          await db.nidCard.delete({ where: { nid: n } })
-          count++
-        } catch {
-          // NID not found, skip
-        }
+        const deleted = deleteCard(n)
+        if (deleted) count++
       }
       return NextResponse.json({ success: true, message: count + 'টি NID ডাটা ডিলিট হয়েছে' })
     }
 
     // Delete all
     if (all === 'true') {
-      const result = await db.nidCard.deleteMany()
-      return NextResponse.json({ success: true, message: result.count + 'টি NID ডাটা ডিলিট হয়েছে' })
+      const count = deleteAllCards()
+      return NextResponse.json({ success: true, message: count + 'টি NID ডাটা ডিলিট হয়েছে' })
     }
 
     // Delete single
     if (nid) {
-      const card = await db.nidCard.findUnique({ where: { nid } })
+      const card = getCardByNid(nid)
       if (!card) {
         return NextResponse.json(
           { success: false, message: 'ফাইল পাওয়া যায়নি' },
           { status: 404 }
         )
       }
-      await db.nidCard.delete({ where: { nid } })
+      deleteCard(nid)
       return NextResponse.json({ success: true, message: 'NID ' + nid + ' ডিলিট হয়েছে' })
     }
 

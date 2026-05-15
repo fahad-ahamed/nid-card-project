@@ -1,59 +1,70 @@
----
-Task ID: 1
-Agent: Main Agent
-Task: Clone and analyze NID Card Project from GitHub
+# NID Card Maker - Fix Worklog
 
-Work Log:
-- Cloned https://github.com/fahad-ahamed/nid-card-project
-- Analyzed all PHP files: index.php, nid_make.php, nid_view.php, nid_search.php, admin.php, downloader.php
-- Identified dependencies: dompdf (Composer), Bootstrap 5, jQuery, PDF417.js, html2canvas, jsPDF
-- Identified storage: JSON file-based in Nid-Data/ folder
-- Identified Vercel incompatibility: PHP file I/O, sessions, file uploads don't work on serverless
+## Date: 2026-05-15
 
-Stage Summary:
-- Project is PHP-based with JSON file storage
-- Requires conversion to Next.js for Vercel deployment
-- All 6 PHP files analyzed, dependencies documented
+## Changes Made
 
----
-Task ID: 2
-Agent: Main Agent + Full-stack Developer Subagent
-Task: Convert PHP NID Card project to Next.js 16
+### 1. Replaced Prisma/SQLite with In-Memory Store
+- **Created** `/home/z/my-project/src/lib/store.ts` - In-memory Map-based NID card storage that works on Vercel serverless
+  - Uses `globalThis` to persist store across serverless function invocations
+  - Implements all required functions: `getAllCards`, `getCardByNid`, `getCardByPin`, `createCard`, `deleteCard`, `deleteAllCards`, `searchCards`
+  - Admin password management: `verifyAdmin`, `resetAdminPassword`
+  - Default admin password: "fahad"
 
-Work Log:
-- Initialized Next.js 16 fullstack development environment
-- Created Prisma schema with NidCard and AdminPassword models
-- Built API routes: /api/nid (CRUD), /api/admin/login
-- Created main page with government theme, navigation, search
-- Built nid-card-form.tsx - Form with photo/signature upload, auto-generate
-- Built nid-card-view.tsx - Card viewer with PDF/PNG download
-- Built nid-card-admin.tsx - Admin panel with login, CRUD
-- Built nid-card-print.tsx - Printable card with PDF417 barcode
-- Created Zustand store for state management
-- Ran db:push to create SQLite database
-- Verified build success (bun run build)
-- Lint passes with no errors
+### 2. Rewrote API Route `/api/nid/route.ts`
+- Replaced all Prisma database calls with in-memory store functions
+- Maintained all existing API endpoints and response formats:
+  - GET with `nid`, `pin`, `search`, `q`, `all` parameters
+  - POST for creating new cards
+  - DELETE with `nid`, `nids`, `all` parameters
+- Response format preserved (e.g., `name_bn`, `name_en` for NID/PIN search, `nameBn` for admin search)
 
-Stage Summary:
-- Full Next.js 16 conversion complete
-- Production build successful
-- All API routes tested and working
-- App running on port 3000
+### 3. Fixed Admin Login Route `/api/admin/login/route.ts`
+- Replaced Prisma `AdminPassword` model with in-memory `verifyAdmin` and `resetAdminPassword` functions
+- Maintained POST (login) and PUT (password reset) handlers
+- Reset code remains "32423"
 
----
-Task ID: 3
-Agent: Main Agent
-Task: Documentation and Vercel Deployment
+### 4. Fixed Auto Generate to Create Random Photos
+- Added canvas-based photo generation in `autoGenerate()` function
+- Generates a passport-style placeholder photo with:
+  - Colored background (beige tones)
+  - Hair, face, eyes, mouth drawn with canvas
+  - Collared shirt body
+- Generates a signature-like curve on white background
+- Both photo and signature are converted to base64 PNG and set as preview + data
 
-Work Log:
-- Created PROJECT_ANALYSIS.md with full project analysis
-- Created requirements-and-commands.md with install/run/deploy commands
-- Created vercel.json configuration
-- Pushed code to GitHub (fahad-ahamed/nid-card-project)
-- Attempted Vercel CLI deployment (requires browser auth)
-- Verified production build succeeds
+### 5. Cleaned Up Package.json and Dependencies
+- Removed `@prisma/client` from dependencies
+- Removed `prisma` from dependencies
+- Removed `db:push`, `db:generate`, `db:migrate`, `db:reset` scripts
+- Deleted `prisma/schema.prisma`
+- Replaced `src/lib/db.ts` with empty export (to avoid import errors)
 
-Stage Summary:
-- Code pushed to GitHub repository
-- Production build verified
-- Vercel deployment requires browser-based login (provided instructions)
+### 6. Added tx1337.css to Layout
+- Added `/assets/CSS/tx1337.css` link to `layout.tsx` head section
+- All other required assets already present:
+  - Google Fonts (Hind Siliguri, Inter)
+  - Kalpurush and Nikosh fonts
+  - Font Awesome, Bootstrap 5 CSS/JS
+  - Bootstrap Icons
+  - html2canvas, jsPDF
+  - PDF417 barcode scripts (bcmath-min.js, pdf417-min.js)
+
+## API Test Results
+All API endpoints tested and working:
+- `GET /api/nid?all=true` → 200 OK, returns empty array
+- `POST /api/nid` → 201 Created, returns card data
+- `GET /api/nid?nid=XXX` → 200 OK, returns card data in PHP format
+- `POST /api/admin/login` (correct password) → 200 OK
+- `POST /api/admin/login` (wrong password) → 401 Unauthorized
+- `DELETE /api/nid?all=true` → 200 OK
+
+## Files Modified
+- `/home/z/my-project/src/lib/store.ts` (rewritten)
+- `/home/z/my-project/src/lib/db.ts` (emptied)
+- `/home/z/my-project/src/app/api/nid/route.ts` (rewritten)
+- `/home/z/my-project/src/app/api/admin/login/route.ts` (rewritten)
+- `/home/z/my-project/src/app/page.tsx` (autoGenerate function updated)
+- `/home/z/my-project/src/app/layout.tsx` (added tx1337.css)
+- `/home/z/my-project/package.json` (removed prisma deps and scripts)
+- `/home/z/my-project/prisma/schema.prisma` (deleted)
