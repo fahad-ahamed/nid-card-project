@@ -1296,6 +1296,54 @@ function DownloaderView({ nid, cardData, onBackToView }: {
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
 
+  // Generate barcode for downloader view
+  useEffect(() => {
+    if (!cardData) return;
+    const timer = setTimeout(() => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const PDF417Lib = (window as any).PDF417;
+        if (!PDF417Lib) return;
+
+        const barcodeEl = document.getElementById('dl_barcode');
+        if (!barcodeEl) return;
+
+        const hub3_code = `<pin>${cardData.pin}</pin><name>${cardData.name_en}</name><DOB>${cardData.dob}/DOB><FP></FP><F>Right Index</F><TYPE>A</TYPE><V>2.0</V><ds>302c0214103fc01240542ed736c0b48858c1c03d80006215021416e73728de9618fedcd368c88d8f3a2e72096d</ds>`;
+        PDF417Lib.init(hub3_code);
+        const barcode = PDF417Lib.getBarcodeArray();
+        const bw = 2, bh = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = bw * barcode.num_cols;
+        canvas.height = bh * barcode.num_rows;
+        barcodeEl.innerHTML = '';
+        barcodeEl.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          let y = 0;
+          for (let r = 0; r < barcode.num_rows; ++r) {
+            let x = 0;
+            for (let c = 0; c < barcode.num_cols; ++c) {
+              if (barcode.bcode[r][c] === 1) { ctx.fillRect(x, y, bw, bh); }
+              x += bw;
+            }
+            y += bh;
+          }
+        }
+
+        // Bengali digit conversion for issue date
+        const finalEnlishToBanglaNumber: Record<string, string> = { '0': '\u09E6', '1': '\u09E7', '2': '\u09E8', '3': '\u09E9', '4': '\u09EA', '5': '\u09EB', '6': '\u09EC', '7': '\u09ED', '8': '\u09EE', '9': '\u09EF' };
+        const cardDateEl = document.getElementById('dl_card_date');
+        if (cardDateEl && cardData.issue_date) {
+          const banglaDate = cardData.issue_date.replace(/[0-9]/g, (d: string) => finalEnlishToBanglaNumber[d] || d);
+          cardDateEl.textContent = banglaDate;
+        }
+      } catch (e) {
+        console.error('Downloader barcode error:', e);
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [cardData]);
+
   const downloadPDF = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const html2canvasLib = (window as any).html2canvas;
@@ -1407,8 +1455,8 @@ function DownloaderView({ nid, cardData, onBackToView }: {
                                   <div className="absolute inset-x-0 top-[2px] mx-auto z-10 flex items-start justify-center"><img style={{ background: 'transparent', width: 114, height: 114 }} className="ml-[20px] w-[125px] h-[116px" src="/assets/Images/flower-logo.png" alt="" /></div>
                                   <div className="relative z-50">
                                     <img style={{ marginTop: -2 }} className="w-[68.2px] h-[78px]" alt="photo" src={cardData.photo_base64 ? `data:${cardData.photo_type || 'image/png'};base64,${cardData.photo_base64}` : '/assets/Images/notfound.png'} />
-                                    <div className="text-center text-xs flex items-start justify-center pt-[5px] w-[68.2px] mx-auto h-[38.5px] overflow-hidden">
-                                      <img src={cardData.sign_base64 ? `data:${cardData.sign_type || 'image/png'};base64,${cardData.sign_base64}` : '/assets/Images/notfound.png'} alt="sign" />
+                                    <div className="text-center text-xs flex items-start justify-center pt-[5px] w-[68.2px] mx-auto h-[38.5px] overflow-hidden" id="dl_card_signature">
+                                      <img id="dl_sign" src={cardData.sign_base64 ? `data:${cardData.sign_type || 'image/png'};base64,${cardData.sign_base64}` : '/assets/Images/notfound.png'} alt="sign" />
                                     </div>
                                   </div>
                                   <div className="w-full relative z-50">
@@ -1433,7 +1481,7 @@ function DownloaderView({ nid, cardData, onBackToView }: {
                                 <div style={{ padding: '3px 4px', height: 66, position: 'relative', fontSize: 12 }}>
                                   <div className="back-address-row">
                                     <span className="back-address-label bn">ঠিকানা:</span>
-                                    <span className="back-address-value bn">{cardData.address}</span>
+                                    <span className="back-address-value bn" id="dl_card_address">{cardData.address}</span>
                                   </div>
                                   <div className="back-bottom-row" style={{ marginTop: 'auto', position: 'absolute', bottom: '1.08px', left: 0, right: 0 }}>
                                     <p className="bn back-info-line" style={{ marginBottom: 0, paddingLeft: 6, fontWeight: 500 }}>
@@ -1449,8 +1497,9 @@ function DownloaderView({ nid, cardData, onBackToView }: {
                                   <img style={{ width: 78, marginLeft: 18, marginBottom: 3, height: '27.3px', display: 'block' }} src="/assets/Images/adminsign.jpg" alt="admin signature" />
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: -5 }}>
                                     <p className="bn" style={{ fontSize: 14, margin: 0 }}>প্রদানকারী কর্তৃপক্তের স্বাক্ষর</p>
-                                    <span className="bn" style={{ fontSize: 12, paddingRight: 16, paddingTop: 1 }}>প্রদানের তারিখ:<span style={{ marginLeft: 10 }}>{cardData.issue_date}</span></span>
+                                    <span className="bn" style={{ fontSize: 12, paddingRight: 16, paddingTop: 1 }}>প্রদানের তারিখ:<span style={{ marginLeft: 10 }} id="dl_card_date">{cardData.issue_date}</span></span>
                                   </div>
+                                  <div id="dl_barcode" style={{ width: '100%', height: 39, marginTop: '1.5px', marginLeft: -3 }}></div>
                                 </div>
                               </div>
                             </div>

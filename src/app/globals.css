@@ -123,13 +123,55 @@
   body { padding: 0; margin: 0; background: #fff; }
 }
 
+/* ===== BENGALI FONT CLASS ===== */
+.bn {
+  font-family: 'Kalpurush', 'Nikosh', sans-serif !important;
+}
+
+/* ===== NID CARD AREA RESET - Override Tailwind v4 base for card rendering ===== */
+#nid_front, #nid_back {
+  box-sizing: content-box;
+}
+#nid_front *, #nid_back * {
+  box-sizing: border-box;
+}
+#nid_front img, #nid_back img {
+  display: inline-block;
+  vertical-align: middle;
+}
+#nid_front p, #nid_back p {
+  margin: 0;
+}
+#nid_front h3, #nid_back h3 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+#nid_front span, #nid_back span {
+  display: inline;
+}
+/* Ensure Tailwind v4 base border reset doesn't break card borders */
+#nid_front .border-black, #nid_back .border-black {
+  border-color: black;
+}
+#nid_front .border-\[1\.999px\], #nid_back .border-\[1\.999px\] {
+  border-width: 1.999px;
+  border-style: solid;
+}
+#nid_front .border-b-\[1\.9999px\], #nid_back .border-b-\[1\.9999px\] {
+  border-bottom-width: 1.9999px;
+  border-bottom-style: solid;
+}
+
 /* ===== NID MAKE PAGE CSS ===== */
-body.nid-make-body {
+.nid-make-body {
   font-family: 'Hind Siliguri', 'Kalpurush', sans-serif;
   background: var(--gov-bg);
   margin: 0;
   min-height: 100vh;
   color: var(--gov-text);
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 /* ===== TOP BANNER ===== */
@@ -603,9 +645,11 @@ body.nid-make-body {
 }
 
 /* ===== NID CARD VIEW CSS ===== */
-body.nid-view-body {
+.nid-view-body {
   font-family: 'Hind Siliguri', 'Kalpurush', sans-serif;
   background: #f0f2f5; margin: 0;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 .result-header {
