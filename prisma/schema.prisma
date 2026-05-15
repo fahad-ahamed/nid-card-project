@@ -1,0 +1,38 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model NidCard {
+  id          String   @id @default(cuid())
+  nameBn      String   // নাম (বাংলা)
+  nameEn      String   // Name (English)
+  nid         String   @unique // NID নম্বর
+  pin         String   // PIN নম্বর
+  father      String   // পিতার নাম
+  mother      String   // মাতার নাম
+  birthPlace  String   // জন্মস্থান
+  dob         String   // জন্ম তারিখ
+  blood       String   // রক্তের গ্রুপ
+  address     String   // ঠিকানা
+  gender      String   @default("male") // লিঙ্গ
+  photoBase64 String?  // Photo as base64
+  photoType   String?  // Photo MIME type
+  signBase64  String?  // Signature as base64
+  signType    String?  // Signature MIME type
+  issueDate   String   // প্রদানের তারিখ
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminPassword {
+  id       String @id @default(cuid())
+  password String @default("fahad")
+}
