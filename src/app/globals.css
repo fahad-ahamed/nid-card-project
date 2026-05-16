@@ -116,6 +116,15 @@
   font-display: swap;
 }
 
+/* ===== BANGLA FONT FACE (from original tx1337.css) ===== */
+@font-face {
+  font-family: 'Bangla';
+  src: url('/assets/CSS/Fonts/Bangla.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ===== PRINT STYLES ===== */
 @media print {
   .no-print { display: none !important; }
@@ -124,11 +133,34 @@
 }
 
 /* ===== BENGALI FONT CLASS ===== */
+/* Must match original tx1337.css: .bn{font-family:Bangla,sans-serif!important} */
 .bn {
-  font-family: 'Kalpurush', 'Nikosh', sans-serif !important;
+  font-family: 'Bangla', 'Kalpurush', 'Nikosh', sans-serif !important;
 }
 
 /* ===== NID CARD AREA RESET - Override Tailwind v4 base for card rendering ===== */
+/* These resets ensure the NID card renders identically to the original PHP version */
+/* The original uses tx1337.css (Tailwind v3) + custom styles; Tailwind v4 base styles conflict */
+
+/* Reset font family for all NID card elements to match original: *{font-family:Bangla,arial} */
+#nid_front, #nid_back,
+#nid_front *, #nid_back * {
+  font-family: Bangla, arial, sans-serif;
+}
+/* Override specific bn class within card */
+#nid_front .bn, #nid_back .bn {
+  font-family: Bangla, Kalpurush, Nikosh, sans-serif !important;
+}
+/* Override specific sans class within card */
+#nid_front .sans, #nid_back .sans {
+  font-family: arial, sans-serif !important;
+}
+/* Ensure inline font-family:arial styles are respected */
+#nid_front [style*="font-family:arial"], #nid_back [style*="font-family:arial"],
+#nid_front [style*="font-family: arial"], #nid_back [style*="font-family: arial"] {
+  font-family: arial, sans-serif !important;
+}
+
 #nid_front, #nid_back {
   box-sizing: content-box;
 }
@@ -138,6 +170,7 @@
 #nid_front img, #nid_back img {
   display: inline-block;
   vertical-align: middle;
+  max-width: none;
 }
 #nid_front p, #nid_back p {
   margin: 0;
@@ -161,6 +194,19 @@
 #nid_front .border-b-\[1\.9999px\], #nid_back .border-b-\[1\.9999px\] {
   border-bottom-width: 1.9999px;
   border-bottom-style: solid;
+}
+/* Reset color for text elements - prevent Tailwind v4 color overrides */
+#nid_front span, #nid_back span,
+#nid_front p, #nid_back p,
+#nid_front b, #nid_back b,
+#nid_front h3, #nid_back h3 {
+  color: inherit;
+}
+/* Reset letter-spacing only for elements that don't have explicit inline letter-spacing */
+/* Do NOT reset globally as some card elements use custom letter-spacing values */
+/* Prevent Tailwind v4 from resetting h3 font-weight */
+#nid_front h3, #nid_back h3 {
+  font-weight: inherit;
 }
 
 /* ===== NID MAKE PAGE CSS ===== */
